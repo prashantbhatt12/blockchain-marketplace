@@ -1,10 +1,13 @@
 import React from "react";
 const DataGrid = (props) => {
+  const onBuyClickHandler = (event) => {
+    props.onCoursePurchase(event.target.name, event.target.value);
+  };
   return (
     <table className="table">
       <thead>
         <tr>
-          <th scope="col">Product Id</th>
+          <th scope="col">Course Id</th>
           <th scope="col">Name</th>
           <th scope="col">Price</th>
           <th scope="col">Owner</th>
@@ -12,27 +15,22 @@ const DataGrid = (props) => {
         </tr>
       </thead>
       <tbody id="productList">
-        {props.data.map((product, key) => {
+        {props.data.map((course, key) => {
           return (
             <tr key={key}>
-              <th scope="row">{product.id.toString()}</th>
-              <td>{product.name}</td>
+              <th scope="row">{course.id.toString()}</th>
+              <td>{course.name}</td>
               <td>
-                {window.web3.utils.fromWei(product.price.toString(), "Ether")}{" "}
+                {window.web3.utils.fromWei(course.price.toString(), "Ether")}{" "}
                 Eth
               </td>
-              <td>{product.owner}</td>
+              <td>{course.owner}</td>
               <td>
-                {!props.isEnrolled && product.owner !== props.account ? (
+                {!props.isEnrolled && course.owner !== props.account ? (
                   <button
-                    name={product.id}
-                    value={product.price}
-                    onClick={(event) => {
-                      props.onCoursePurchase(
-                        event.target.name,
-                        event.target.value
-                      );
-                    }}
+                    name={course.id}
+                    value={course.price}
+                    onClick={onBuyClickHandler}
                   >
                     Buy
                   </button>

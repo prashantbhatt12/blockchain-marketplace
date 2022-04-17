@@ -9,8 +9,8 @@ import AddCourse from "./components/AddCourse";
 
 const App = () => {
   const [account, setAccount] = useState("");
-  const [productCount, setProductCount] = useState(0);
-  const [products, setProducts] = useState([]);
+  const [courseCount, setCourseCount] = useState(0);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marketplace, setMarketplace] = useState({});
   const [userCourses, setUserCourses] = useState([]);
@@ -20,7 +20,7 @@ const App = () => {
     // Modern dapp browsers...
     if (window.ethereum) {
       window.web3 = new Web3(window.ethereum);
-      await window.ethereum.enable();
+      //await window.ethereum.enable();
     }
     // Legacy dapp browsers...
     else if (window.web3) {
@@ -49,68 +49,57 @@ const App = () => {
       );
       setMarketplace(marketplace);
       setLoading(false);
-      const productCount = await marketplace.methods.productCount().call();
+      const courseCount = await marketplace.methods.courseCount().call();
       const downloadsCount = await marketplace.methods
         .userDownloads(accounts[0])
         .call();
       //console.log("downloads count:", downloadsCount);
       setDownloadCount(downloadsCount);
-      setProductCount(productCount);
-      // Load products, i: index#
+      setCourseCount(courseCount);
+      // Load courses, i: index#
       const productsList = [];
       const userEnrolledIn = [];
       const enrolledCourseIds = await marketplace.methods
         .getEnrolledCourses()
         .call({ from: accounts[0] });
-
-      // enrolledCoursesArr.forEach(element => {
-      //   userEnrolled.push(element);
-      // });
-      for (let i = 1; i <= productCount; i++) {
-        const product = await marketplace.methods.products(i).call();
-        // this.setState({
-        //   products: [...this.state.products, product],
-        // });
-        //console.log("account:" + account);
-        // if (product.owner === accounts[0]) {
-        //   userEnrolled.push(product);
-        // } else if (!product.purchased) {
-        //   productsList.push(product);
-        // }
+      for (let i = 1; i <= courseCount; i++) {
+        const course = await marketplace.methods.courses(i).call();
         if (
-          product.owner !== accounts[0] &&
-          !enrolledCourseIds.includes(product.id)
+          course.owner !== accounts[0] &&
+          !enrolledCourseIds.includes(course.id)
         ) {
-          productsList.push(product);
+          productsList.push(course);
         }
-        if (enrolledCourseIds.includes(product.id)) {
-          userEnrolledIn.push(product);
+        if (enrolledCourseIds.includes(course.id)) {
+          userEnrolledIn.push(course);
         }
       }
       //console.log("enrolledCourses", userEnrolled);
-      setProducts(productsList);
+      setCourses(productsList);
       setUserCourses(userEnrolledIn);
     } else {
       window.alert("Marketplace contract not deployed to network.");
     }
   };
-  const createProduct = async (name, price, desc) => {
+  const createCourse = async (name, price, desc) => {
     //await this.setState({ loading: true });
     setLoading(true);
     await marketplace.methods
-      .createProduct(name, price, desc)
+      .createCourse(name, price, desc)
       .send({ from: account })
       .once("receipt", (receipt) => {
+        //console("some", receipt);
         setLoading(false);
       });
-    // .then(this.setState({ loading: false }));
+    const createdCourseId = await marketplace.methods.getCourseId().call();
+    console.log("crefated course id", createdCourseId);
     loadBlockchainData();
   };
 
-  const purchaseProduct = async (id, price) => {
+  const purchaseCourse = async (id, price) => {
     setLoading(true);
     await marketplace.methods
-      .purchaseProduct(id)
+      .subscribeCourse(id)
       .send({ from: account, value: price })
       // .then(this.setState({ loading: false }));
       .once("receipt", (receipt) => {
@@ -133,6 +122,15 @@ const App = () => {
       });
   };
   useEffect(() => {
+    //refresh the UI if the user changes the account in meta mask
+    if (window.ethereum) {
+      window.ethereum.on("chainChanged", () => {
+        window.location.reload();
+      });
+      window.ethereum.on("accountsChanged", () => {
+        window.location.reload();
+      });
+    }
     loadWeb3();
     loadBlockchainData();
   }, []);
@@ -158,17 +156,17 @@ const App = () => {
                         isEnrolled={true}
                         totalDownloads={downloadsCount}
                         onRewardsAchieved={getRewardMoney}
+                        courseCount={courseCount}
                       ></Courses>
                     </Route>
                     <Route path="/addCourse" exact>
-                      <AddCourse onCourseAdded={createProduct}></AddCourse>
+                      <AddCourse onCourseAdded={createCourse}></AddCourse>
                     </Route>
                     <Route path="/" exact>
                       <Home
                         isEnrolled={false}
-                        availableCourses={products}
-                        createProduct={createProduct}
-                        purchaseProduct={purchaseProduct}
+                        availableCourses={courses}
+                        onCoursePurchased={purchaseCourse}
                       />
                     </Route>
                   </Switch>

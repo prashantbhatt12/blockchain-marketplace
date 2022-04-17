@@ -19,6 +19,7 @@ const AddCourse = (props) => {
     <>
       <div className="d-flex flex-column">
         <div className="p-2 bd-highlight">
+          <p>&nbsp;</p>
           <h1 className="text-center">Add a course</h1>
           <form className="w-50 mx-auto" onSubmit={onCourseAddHandler}>
             <div className="mb-2 justify-content-center">

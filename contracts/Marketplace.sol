@@ -2,21 +2,19 @@
 pragma solidity >=0.6.0 <0.9.0;
 
 contract Marketplace {
-    // State var
+    //State variables
     string public name;
-    uint256 public productCount = 0;
-    // key: id, value: Product
-    mapping(uint256 => Product) public products;
+    uint256 public courseCount = 0;
+    mapping(uint256 => Course) public courses;
     mapping(address => uint256) public userDownloads;
-    mapping(address => uint256) public totalDownloads;
-    mapping(address => Enrolled) enrolledCourse;
-    // Data structure
-    struct Product {
+    mapping(address => Enrolled) enrolledCourses;
+
+    // Data structures
+    struct Course {
         uint256 id;
         string name;
         uint256 price;
         address payable owner;
-        bool purchased;
         string desc;
     }
 
@@ -24,21 +22,19 @@ contract Marketplace {
         uint256[] courseList;
     }
 
-    event ProductCreated(
+    event CourseCreated(
         uint256 id,
         string name,
         uint256 price,
         address payable owner,
-        bool purchased,
         string desc
     );
 
-    event ProductPurchased(
+    event CourseSubscribed(
         uint256 id,
         string name,
         uint256 price,
         address payable owner,
-        bool purchased,
         uint256[] subscriberList
     );
 
@@ -46,91 +42,93 @@ contract Marketplace {
 
     event Received(address, uint256);
 
-    // constructor: function run only one times when deploy
+    // constructor
     constructor() payable {
         name = "UBPrep Marketplace";
+        //To fund the contract for rewards feature 
         payable(this).transfer(msg.value);
     }
+
+    //Modifier to check if user is eligible for rewards
+    modifier onlyEligible {
+      require(userDownloads[msg.sender] >= 5);
+      _;
+   }
 
     function viewBalance() public view returns (uint256) {
         return address(this).balance;
     }
 
-    // `_`: convention to mention local ver, not state var
-    // `memory`: local var, not in blockchain
-    function createProduct(
+    function getCourseId() public view returns (uint256) {
+        return courseCount;
+    }
+
+    function createCourse(
         string memory _name,
         uint256 _price,
         string memory _desc
     ) public {
-        // Require a valid name
+        // Require a valid course name
         require(bytes(_name).length > 0);
-        // Require a valid price
+        // Require a valid course price
         require(_price > 0);
-        // Add product
-        productCount++;
-        // Create the product
-        products[productCount] = Product({
-            id: productCount,
+
+        courseCount++;
+        courses[courseCount] = Course({
+            id: courseCount,
             name: _name,
             price: _price,
             owner: payable(msg.sender),
-            purchased: false,
             desc: _desc
         });
+
         // Triger an event
-        emit ProductCreated({
-            id: productCount,
+        emit CourseCreated({
+            id: courseCount,
             name: _name,
             price: _price,
             owner: payable(msg.sender),
-            purchased: false,
             desc: _desc
         });
     }
 
-    // payable: allow to use `value`
-    function purchaseProduct(uint256 _id) public payable {
-        // Fetch the product
-        Product memory _product = products[_id];
-        // Fetch the owner
-        address payable _seller = _product.owner;
-        // Make sure the procut has valid id
-        require(_product.id > 0 && _product.id <= productCount);
+    function subscribeCourse(uint256 _id) public payable {
+        Course memory _course = courses[_id];
+        address payable _creator = _course.owner;
+
+        // Check if the id is valid
+        require(_course.id > 0 && _course.id <= courseCount);
         // Require that there is enough Ether in the transaction
-        require(msg.value >= _product.price);
-        // Require that the product has not been purchased already
-        // require(!_product.purchased);
-        // Require that the buyer is not the seller
-        require(_seller != msg.sender);
-        // Transfer ownership to the buyer
-        // _product.owner = payable(msg.sender);
-        // Mark as purchased
-        // _product.purchased = true;
-        // Update the product
-        // products[_id] = _product;
-        // Pay the seller by sending them Ether
-        payable(_seller).transfer(msg.value);
+        require(msg.value >= _course.price);
+        // Require that the subscriber is not the creator
+        require(_creator != msg.sender);
+
+        // Pay the owner
+        payable(_creator).transfer(msg.value);
         //Add course to enrolled courses
-        enrolledCourse[msg.sender].courseList.push(_id);
+        enrolledCourses[msg.sender].courseList.push(_id);
         //Increase download count of owner
-        userDownloads[_seller] += 1;
-        totalDownloads[_seller] += 1;
+        userDownloads[_creator] += 1;
+
         // Trigger an event
-        emit ProductPurchased({
-            id: productCount,
-            name: _product.name,
-            price: _product.price,
+        emit CourseSubscribed({
+            id: courseCount,
+            name: _course.name,
+            price: _course.price,
             owner: payable(msg.sender),
-            purchased: false,
-            subscriberList: enrolledCourse[msg.sender].courseList
+            subscriberList: enrolledCourses[msg.sender].courseList
         });
     }
 
-    function getRewards() public {
-        require(userDownloads[msg.sender] >= 5);
+    function getEnrolledCourses() public view returns(uint256[] memory){
+        return enrolledCourses[msg.sender].courseList;
+    }
+
+    function getRewards() public onlyEligible{
+        //Reduce the reward threshold by 5
         userDownloads[msg.sender] -= 5;
-        uint256 reward = 5;
+        //Reward user 5 ether
+        uint256 reward = 5 ether;
         payable(msg.sender).transfer(reward);
         emit RewardsBalance({
             owner: payable(msg.sender),
@@ -140,9 +138,5 @@ contract Marketplace {
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
-    }
-
-    function getEnrolledCourses() public view returns(uint256[] memory){
-        return enrolledCourse[msg.sender].courseList;
     }
 }
