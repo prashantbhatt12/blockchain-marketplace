@@ -15,7 +15,6 @@ contract Marketplace {
         string name;
         uint256 price;
         address payable owner;
-        string desc;
     }
 
     struct Enrolled{
@@ -26,8 +25,7 @@ contract Marketplace {
         uint256 id,
         string name,
         uint256 price,
-        address payable owner,
-        string desc
+        address payable owner
     );
 
     event CourseSubscribed(
@@ -65,8 +63,7 @@ contract Marketplace {
 
     function createCourse(
         string memory _name,
-        uint256 _price,
-        string memory _desc
+        uint256 _price
     ) public {
         // Require a valid course name
         require(bytes(_name).length > 0);
@@ -78,8 +75,7 @@ contract Marketplace {
             id: courseCount,
             name: _name,
             price: _price,
-            owner: payable(msg.sender),
-            desc: _desc
+            owner: payable(msg.sender)
         });
 
         // Triger an event
@@ -87,8 +83,7 @@ contract Marketplace {
             id: courseCount,
             name: _name,
             price: _price,
-            owner: payable(msg.sender),
-            desc: _desc
+            owner: payable(msg.sender)
         });
     }
 

@@ -6,15 +6,21 @@ import Home from "./components/Home";
 import { Route, Switch } from "react-router-dom";
 import Courses from "./components/Courses";
 import AddCourse from "./components/AddCourse";
+import { db } from "./configs/firebase-config";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 
 const App = () => {
+  const COLLECTION_NAME = "courses";
   const [account, setAccount] = useState("");
-  const [courseCount, setCourseCount] = useState(0);
+  // const [courseCount, setCourseCount] = useState(0);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marketplace, setMarketplace] = useState({});
   const [userCourses, setUserCourses] = useState([]);
   const [downloadsCount, setDownloadCount] = useState(0);
+  // const [offChainData, setOffchainData] = useState([]);
+
+  const coursesCollectionRef = collection(db, COLLECTION_NAME);
   const loadWeb3 = async () => {
     // window.web3: Metamask
     // Modern dapp browsers...
@@ -55,26 +61,39 @@ const App = () => {
         .call();
       //console.log("downloads count:", downloadsCount);
       setDownloadCount(downloadsCount);
-      setCourseCount(courseCount);
+      //setCourseCount(courseCount);
       // Load courses, i: index#
       const productsList = [];
       const userEnrolledIn = [];
       const enrolledCourseIds = await marketplace.methods
         .getEnrolledCourses()
         .call({ from: accounts[0] });
+      const data = await getDocs(coursesCollectionRef);
+      const offChainData = data.docs.map((doc) => {
+        return { ...doc.data(), id: doc.id };
+      });
       for (let i = 1; i <= courseCount; i++) {
         const course = await marketplace.methods.courses(i).call();
+        const courseDesc = offChainData.filter(
+          (elem) => +elem.course_id === +course.id
+        );
         if (
           course.owner !== accounts[0] &&
           !enrolledCourseIds.includes(course.id)
         ) {
-          productsList.push(course);
+          productsList.push({
+            ...course,
+            desc: courseDesc.length === 0 ? "NA" : courseDesc[0].desc,
+          });
         }
         if (enrolledCourseIds.includes(course.id)) {
-          userEnrolledIn.push(course);
+          userEnrolledIn.push({
+            ...course,
+            desc: courseDesc.length === 0 ? "NA" : courseDesc[0].desc,
+          });
         }
       }
-      //console.log("enrolledCourses", userEnrolled);
+      console.log("enrolledCourses", userEnrolledIn);
       setCourses(productsList);
       setUserCourses(userEnrolledIn);
     } else {
@@ -85,14 +104,18 @@ const App = () => {
     //await this.setState({ loading: true });
     setLoading(true);
     await marketplace.methods
-      .createCourse(name, price, desc)
+      .createCourse(name, price, "")
       .send({ from: account })
       .once("receipt", (receipt) => {
         //console("some", receipt);
         setLoading(false);
       });
     const createdCourseId = await marketplace.methods.getCourseId().call();
-    console.log("crefated course id", createdCourseId);
+    await addDoc(coursesCollectionRef, {
+      course_id: createdCourseId,
+      desc: desc,
+    });
+    //console.log("crefated course id", createdCourseId);
     loadBlockchainData();
   };
 
@@ -121,6 +144,17 @@ const App = () => {
         setLoading(false);
       });
   };
+
+  // const getFirebaseData = async () => {
+  //   const data = await getDocs(coursesCollectionRef);
+  //   const offChainData = data.docs.map((doc) => {
+  //     return { ...doc.data(), id: doc.id };
+  //   });
+  //   console.log("offchaindata", offChainData);
+  //   setOffchainData(offChainData);
+  //   loadWeb3();
+  //   loadBlockchainData();
+  // };
   useEffect(() => {
     //refresh the UI if the user changes the account in meta mask
     if (window.ethereum) {
@@ -156,7 +190,6 @@ const App = () => {
                         isEnrolled={true}
                         totalDownloads={downloadsCount}
                         onRewardsAchieved={getRewardMoney}
-                        courseCount={courseCount}
                       ></Courses>
                     </Route>
                     <Route path="/addCourse" exact>
