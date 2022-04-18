@@ -12,36 +12,32 @@ import { collection, getDocs, addDoc } from "firebase/firestore";
 const App = () => {
   const COLLECTION_NAME = "courses";
   const [account, setAccount] = useState("");
-  // const [courseCount, setCourseCount] = useState(0);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marketplace, setMarketplace] = useState({});
   const [userCourses, setUserCourses] = useState([]);
   const [downloadsCount, setDownloadCount] = useState(0);
-  // const [offChainData, setOffchainData] = useState([]);
 
   const coursesCollectionRef = collection(db, COLLECTION_NAME);
   const loadWeb3 = async () => {
     // window.web3: Metamask
     // Modern dapp browsers...
     if (window.ethereum) {
-      window.web3 = new Web3(window.ethereum);
-      //await window.ethereum.enable();
+      console.log("dadada");
+      window.web3 = new Web3(Web3.givenProvider);
     }
     // Legacy dapp browsers...
     else if (window.web3) {
+      console.log("hello");
       window.web3 = new Web3(window.web3.currentProvider);
     } else {
-      window.alert(
-        "Non-Ethereum browser detected. You should consider trying MetaMask!"
-      );
+      alert("Couldn't connect with meta-mask!");
     }
   };
   const loadBlockchainData = async () => {
     const web3 = window.web3;
     // Load account
     const accounts = await web3.eth.getAccounts();
-    //this.setState({ account: accounts[0] });
     setAccount(accounts[0]);
     // Will get networks id, lather than hard code [5777].
     const networkId = await web3.eth.net.getId();
@@ -59,9 +55,7 @@ const App = () => {
       const downloadsCount = await marketplace.methods
         .userDownloads(accounts[0])
         .call();
-      //console.log("downloads count:", downloadsCount);
       setDownloadCount(downloadsCount);
-      //setCourseCount(courseCount);
       // Load courses, i: index#
       const productsList = [];
       const userEnrolledIn = [];
@@ -93,7 +87,6 @@ const App = () => {
           });
         }
       }
-      console.log("enrolledCourses", userEnrolledIn);
       setCourses(productsList);
       setUserCourses(userEnrolledIn);
     } else {
@@ -101,13 +94,11 @@ const App = () => {
     }
   };
   const createCourse = async (name, price, desc) => {
-    //await this.setState({ loading: true });
     setLoading(true);
     await marketplace.methods
-      .createCourse(name, price, "")
+      .createCourse(name, price)
       .send({ from: account })
       .once("receipt", (receipt) => {
-        //console("some", receipt);
         setLoading(false);
       });
     const createdCourseId = await marketplace.methods.getCourseId().call();
@@ -115,18 +106,16 @@ const App = () => {
       course_id: createdCourseId,
       desc: desc,
     });
-    //console.log("crefated course id", createdCourseId);
     loadBlockchainData();
   };
 
-  const purchaseCourse = async (id, price) => {
+  const enrollInCourse = async (id, price) => {
     setLoading(true);
     await marketplace.methods
       .subscribeCourse(id)
       .send({ from: account, value: price })
-      // .then(this.setState({ loading: false }));
-      .once("receipt", (receipt) => {
-        //console.log("receipt: " + receipt);
+      .once("receipt", () => {})
+      .then(() => {
         setLoading(false);
       });
     loadBlockchainData();
@@ -143,18 +132,9 @@ const App = () => {
         console.log("receipt: ", receipt);
         setLoading(false);
       });
+    alert("Congratulations!! rewards money deposited into your account");
   };
 
-  // const getFirebaseData = async () => {
-  //   const data = await getDocs(coursesCollectionRef);
-  //   const offChainData = data.docs.map((doc) => {
-  //     return { ...doc.data(), id: doc.id };
-  //   });
-  //   console.log("offchaindata", offChainData);
-  //   setOffchainData(offChainData);
-  //   loadWeb3();
-  //   loadBlockchainData();
-  // };
   useEffect(() => {
     //refresh the UI if the user changes the account in meta mask
     if (window.ethereum) {
@@ -199,7 +179,7 @@ const App = () => {
                       <Home
                         isEnrolled={false}
                         availableCourses={courses}
-                        onCoursePurchased={purchaseCourse}
+                        onEnrollingCourse={enrollInCourse}
                       />
                     </Route>
                   </Switch>

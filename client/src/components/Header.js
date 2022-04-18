@@ -1,10 +1,14 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import classes from "./Header.module.css";
+import brandImage from "../resources/app-logo.jpeg";
 const Header = ({ account }) => {
   return (
     <nav className="navbar navbar-dark fixed-top bg-dark p-2 shadow">
-      <span className="navbar-brand col-sm-3 col-md-2 mr-0">UBPrep</span>
+      <span className="navbar-brand">
+        <img src={brandImage} alt="" width="40" height="40" />
+        &nbsp; UBPrep
+      </span>
       <NavLink
         exact
         activeClassName={classes.active}

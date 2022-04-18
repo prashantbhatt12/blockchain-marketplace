@@ -1,7 +1,7 @@
 import React from "react";
 const DataGrid = (props) => {
-  const onBuyClickHandler = (event) => {
-    props.onCoursePurchase(event.target.name, event.target.value);
+  const onEnrollClickHandler = (event) => {
+    props.onEnrollingCourse(event.target.name, event.target.value);
   };
   return (
     <table className="table">
@@ -9,6 +9,7 @@ const DataGrid = (props) => {
         <tr>
           <th scope="col">Course Id</th>
           <th scope="col">Name</th>
+          <th scope="col">Course Description</th>
           <th scope="col">Price</th>
           <th scope="col">Owner</th>
           <th scope="col" />
@@ -20,6 +21,7 @@ const DataGrid = (props) => {
             <tr key={key}>
               <th scope="row">{course.id.toString()}</th>
               <td>{course.name}</td>
+              <td>{course.desc}</td>
               <td>
                 {window.web3.utils.fromWei(course.price.toString(), "Ether")}{" "}
                 Eth
@@ -30,9 +32,10 @@ const DataGrid = (props) => {
                   <button
                     name={course.id}
                     value={course.price}
-                    onClick={onBuyClickHandler}
+                    onClick={onEnrollClickHandler}
+                    className="btn btn-success"
                   >
-                    Buy
+                    Enroll
                   </button>
                 ) : null}
               </td>

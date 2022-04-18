@@ -7,7 +7,7 @@ const Home = (props) => {
       <h2>Buy Courses:</h2>
       <DataGrid
         data={props.availableCourses}
-        onCoursePurchase={props.onCoursePurchased}
+        onEnrollingCourse={props.onEnrollingCourse}
         isEnrolled={props.isEnrolled}
       ></DataGrid>
     </div>
