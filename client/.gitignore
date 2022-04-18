@@ -24,4 +24,5 @@ yarn-error.log*
 
 # Generated files
 /src/contracts
+src/configs/firebase-configs.js
 
