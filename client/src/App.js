@@ -12,8 +12,8 @@ import { collection, getDocs, addDoc } from "firebase/firestore";
 import AirDropCoins from "./components/AirDropCoins";
 
 const App = () => {
-  const MARKETPLACE_ADDRESS = "0xd9f3c42741144acdedf711ce8dba18213dd1deae";
-  const PREPCOIN_ADDRESS = "0xf59738c1044cc479653b966ed90b4f090aaa659c";
+  const MARKETPLACE_ADDRESS = "0xbe2A4ab52B55C1dE725b5b3008bAb0042Fc52b73";
+  const PREPCOIN_ADDRESS = "0xa9491be8192337f25eddf05684702483de2130b6";
   const COLLECTION_NAME = "courses";
   const [account, setAccount] = useState("");
   const [courses, setCourses] = useState([]);

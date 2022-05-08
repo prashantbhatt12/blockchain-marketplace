@@ -24,7 +24,7 @@ const DataGrid = (props) => {
               <td>{course.desc}</td>
               <td>
                 {window.web3.utils.fromWei(course.price.toString(), "Ether")}{" "}
-                Eth
+                PRC
               </td>
               <td>{course.owner}</td>
               <td>

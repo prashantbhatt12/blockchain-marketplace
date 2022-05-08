@@ -45,7 +45,7 @@ const Header = (props) => {
         <li className="nav-item text-nowrap d-sm-block">
           <small className="text-white">
             <span id="account">
-              <b>Balance: {balance}</b>
+              <b>Balance: {balance} PRC</b>
             </span>
           </small>
           &nbsp;&nbsp;&nbsp;&nbsp;
