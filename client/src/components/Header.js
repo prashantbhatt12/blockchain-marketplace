@@ -2,7 +2,8 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import classes from "./Header.module.css";
 import brandImage from "../resources/app-logo.jpeg";
-const Header = ({ account }) => {
+const Header = (props) => {
+  const { account, balance, isOwner } = props;
   return (
     <nav className="navbar navbar-dark fixed-top bg-dark p-2 shadow">
       <span className="navbar-brand">
@@ -31,10 +32,27 @@ const Header = ({ account }) => {
       >
         Add Course
       </NavLink>
+      {isOwner && (
+        <NavLink
+          activeClassName={classes.active}
+          className={classes.headerItems}
+          to="/airdrop"
+        >
+          Air Drop
+        </NavLink>
+      )}
       <ul className="navbar-nav px-3">
         <li className="nav-item text-nowrap d-sm-block">
           <small className="text-white">
-            <span id="account">My a/c address: {account}</span>
+            <span id="account">
+              <b>Balance: {balance}</b>
+            </span>
+          </small>
+          &nbsp;&nbsp;&nbsp;&nbsp;
+          <small className="text-white">
+            <span id="account">
+              <b>Address:</b> {account}
+            </span>
           </small>
         </li>
       </ul>

@@ -1,6 +1,9 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0 <0.9.0;
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./Prepcoin.sol";
+
 contract Marketplace {
     //State variables
     string public name;
@@ -8,6 +11,9 @@ contract Marketplace {
     mapping(uint256 => Course) public courses;
     mapping(address => uint256) public userDownloads;
     mapping(address => Enrolled) enrolledCourses;
+    mapping(address => bool) public airdrop;
+    PrepCoin prep;
+    address tokenOwner;
 
     // Data structures
     struct Course {
@@ -17,7 +23,7 @@ contract Marketplace {
         address payable owner;
     }
 
-    struct Enrolled{
+    struct Enrolled {
         uint256[] courseList;
     }
 
@@ -36,35 +42,28 @@ contract Marketplace {
         uint256[] subscriberList
     );
 
-    event RewardsBalance(address payable owner, uint256 balance);
+    event Balance(address payable owner, uint256 balance);
 
-    event Received(address, uint256);
-
-    // constructor
-    constructor() payable {
+    // constructor which takes token contract address and token contract owner address
+    constructor(address _prep, address _tokenOwner) payable {
         name = "UBPrep Marketplace";
-        //To fund the contract for rewards feature 
-        payable(this).transfer(msg.value);
+        prep = PrepCoin(_prep);
+        tokenOwner = _tokenOwner;
     }
 
     //Modifier to check if user is eligible for rewards
-    modifier onlyEligible {
-      require(userDownloads[msg.sender] >= 5);
-      _;
-   }
-
-    function viewBalance() public view returns (uint256) {
-        return address(this).balance;
+    modifier onlyEligible() {
+        require(userDownloads[msg.sender] >= 5);
+        _;
     }
 
-    function getCourseId() public view returns (uint256) {
-        return courseCount;
+    //Modifier to check if the sender is the token owner
+    modifier onlyOwner() {
+        require(msg.sender == tokenOwner);
+        _;
     }
 
-    function createCourse(
-        string memory _name,
-        uint256 _price
-    ) public {
+    function createCourse(string memory _name, uint256 _price) public {
         // Require a valid course name
         require(bytes(_name).length > 0);
         // Require a valid course price
@@ -87,19 +86,21 @@ contract Marketplace {
         });
     }
 
-    function subscribeCourse(uint256 _id) public payable {
+    function subscribeCourse(uint256 _id) public {
         Course memory _course = courses[_id];
         address payable _creator = _course.owner;
 
         // Check if the id is valid
         require(_course.id > 0 && _course.id <= courseCount);
-        // Require that there is enough Ether in the transaction
-        require(msg.value >= _course.price);
+        // Require that there are enough PRC with subscribers
+        require(prep.balanceOf(msg.sender) >= _course.price);
         // Require that the subscriber is not the creator
         require(_creator != msg.sender);
+        //Require allowance to smartcontract
+        require(prep.allowance(msg.sender, address(this)) >= _course.price);
 
         // Pay the owner
-        payable(_creator).transfer(msg.value);
+        prep.transferFrom(msg.sender, _creator, _course.price);
         //Add course to enrolled courses
         enrolledCourses[msg.sender].courseList.push(_id);
         //Increase download count of owner
@@ -115,23 +116,51 @@ contract Marketplace {
         });
     }
 
-    function getEnrolledCourses() public view returns(uint256[] memory){
-        return enrolledCourses[msg.sender].courseList;
-    }
-
-    function getRewards() public onlyEligible{
+    function getRewards() public onlyEligible {
         //Reduce the reward threshold by 5
         userDownloads[msg.sender] -= 5;
-        //Reward user 5 ether
-        uint256 reward = 5 ether;
-        payable(msg.sender).transfer(reward);
-        emit RewardsBalance({
+        //Reward user 50 PRC
+        uint256 reward = 50;
+        prep.giveRewards(payable(msg.sender), reward);
+        emit Balance({
             owner: payable(msg.sender),
-            balance: msg.sender.balance
+            balance: prep.balanceOf(payable(msg.sender))
         });
     }
 
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
+    //Standard airdrop of 100 PRC once per user address
+    function airdropTokens() public {
+        require(airdrop[msg.sender] != true);
+        prep.airdrop(payable(msg.sender));
+        airdrop[msg.sender] = true;
+        emit Balance({
+            owner: payable(msg.sender),
+            balance: prep.balanceOf(payable(msg.sender))
+        });
+    }
+
+    //Function to airdrop by owner
+    function airdropTokenOwner(address _addr, uint256 _amount)
+        public
+        onlyOwner
+    {
+        require(prep.allowance(tokenOwner, address(this)) >= _amount);
+        prep.transferFrom(tokenOwner, _addr, _amount);
+        emit Balance({
+            owner: payable(msg.sender),
+            balance: prep.balanceOf(payable(msg.sender))
+        });
+    }
+
+    function getCourseId() public view returns (uint256) {
+        return courseCount;
+    }
+
+    function getEnrolledCourses() public view returns (uint256[] memory) {
+        return enrolledCourses[msg.sender].courseList;
+    }
+
+    function viewBalance() public view returns (uint256) {
+        return prep.balanceOf(payable(msg.sender));
     }
 }

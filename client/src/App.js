@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Web3 from "web3";
 import Marketplace from "./contracts/Marketplace.json";
+import Prepcoin from "./contracts/Prepcoin.json";
 import Header from "./components/Header";
 import Home from "./components/Home";
 import { Route, Switch } from "react-router-dom";
@@ -8,15 +9,22 @@ import Courses from "./components/Courses";
 import AddCourse from "./components/AddCourse";
 import { db } from "./configs/firebase-config";
 import { collection, getDocs, addDoc } from "firebase/firestore";
+import AirDropCoins from "./components/AirDropCoins";
 
 const App = () => {
+  const MARKETPLACE_ADDRESS = "0xd9f3c42741144acdedf711ce8dba18213dd1deae";
+  const PREPCOIN_ADDRESS = "0xf59738c1044cc479653b966ed90b4f090aaa659c";
   const COLLECTION_NAME = "courses";
   const [account, setAccount] = useState("");
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [marketplace, setMarketplace] = useState({});
+  const [prepcoin, setPrepcoin] = useState({});
   const [userCourses, setUserCourses] = useState([]);
   const [downloadsCount, setDownloadCount] = useState(0);
+  const [airDropFlag, setAirDropFlag] = useState(false);
+  const [accountBalance, setAccountBalance] = useState(0);
+  const [tokenOwner, setTokenOwner] = useState("");
 
   const coursesCollectionRef = collection(db, COLLECTION_NAME);
   const loadWeb3 = async () => {
@@ -39,22 +47,35 @@ const App = () => {
     // Load account
     const accounts = await web3.eth.getAccounts();
     setAccount(accounts[0]);
-    // Will get networks id, lather than hard code [5777].
+    // Will get networks id, rather than hard code [5777].
     const networkId = await web3.eth.net.getId();
-    const networkData = Marketplace.networks[networkId];
+    //const networkData = Marketplace.networks[networkId];
 
-    if (networkData) {
+    if (MARKETPLACE_ADDRESS) {
       // address: Contract address
       const marketplace = new web3.eth.Contract(
         Marketplace.abi,
-        networkData.address
+        MARKETPLACE_ADDRESS
       );
+      const prepcoin = new web3.eth.Contract(Prepcoin.abi, PREPCOIN_ADDRESS);
       setMarketplace(marketplace);
+      setPrepcoin(prepcoin);
       setLoading(false);
       const courseCount = await marketplace.methods.courseCount().call();
       const downloadsCount = await marketplace.methods
         .userDownloads(accounts[0])
         .call();
+      const airDrop = await marketplace.methods.airdrop(accounts[0]).call();
+      let balance = await marketplace.methods
+        .viewBalance()
+        .call({ from: accounts[0] });
+      balance = balance / Math.pow(10, 18);
+      const owner = await marketplace.methods.tokenOwner().call();
+      console.log("balance", balance);
+      console.log("tokenOwner", owner);
+      setTokenOwner(owner);
+      setAccountBalance(balance);
+      setAirDropFlag(airDrop);
       setDownloadCount(downloadsCount);
       // Load courses, i: index#
       const productsList = [];
@@ -111,9 +132,27 @@ const App = () => {
 
   const enrollInCourse = async (id, price) => {
     setLoading(true);
+    const allowance = await prepcoin.methods
+      .allowance(account, MARKETPLACE_ADDRESS)
+      .call({ from: account });
+    console.log("allowance", allowance);
+    if (allowance < price) {
+      await prepcoin.methods
+        .approve(MARKETPLACE_ADDRESS, price)
+        .send({ from: account })
+        .once("receipt", () => {})
+        .then(() => {
+          console.log("approval successful");
+        })
+        .catch((error) => {
+          console.log("There was an issue with approval:", error.message);
+          window.alert("Approval error");
+        });
+    }
+
     await marketplace.methods
       .subscribeCourse(id)
-      .send({ from: account, value: price })
+      .send({ from: account })
       .once("receipt", () => {})
       .then(() => {
         setLoading(false);
@@ -122,7 +161,7 @@ const App = () => {
   };
 
   const getRewardMoney = async () => {
-    console.log("Helloooooooo");
+    //console.log("Helloooooooo");
     setLoading(true);
     await marketplace.methods
       .getRewards()
@@ -135,6 +174,53 @@ const App = () => {
     alert("Congratulations!! rewards money deposited into your account");
   };
 
+  const onAirDropClickedHandler = async () => {
+    //console.log("onAirDropClickedHandler");
+    setLoading(true);
+    await marketplace.methods
+      .airdropTokens()
+      .send({ from: account })
+      // .then(this.setState({ loading: false }));
+      .once("receipt", (receipt) => {
+        console.log("receipt: ", receipt);
+        setLoading(false);
+      });
+    loadBlockchainData();
+  };
+
+  const onOwnerAirDropClickedHandler = async (address, amount) => {
+    console.log("add:", address, "amount:", +amount);
+    setLoading(true);
+    const allowance = await prepcoin.methods
+      .allowance(account, MARKETPLACE_ADDRESS)
+      .send({ from: account })
+      .once("receipt", () => {})
+      .then(() => {
+        console.log("allowance received");
+      });
+    if (allowance < amount) {
+      await prepcoin.methods
+        .approve(MARKETPLACE_ADDRESS, amount)
+        .send({ from: account })
+        .once("receipt", () => {})
+        .then(() => {
+          console.log("approval successful");
+        })
+        .catch((error) => {
+          console.log("There was an issue with approval:", error.message);
+          window.alert("Approval error");
+        });
+    }
+    await marketplace.methods
+      .airdropTokenOwner(address, +amount)
+      .send({ from: account })
+      // .then(this.setState({ loading: false }));
+      .once("receipt", (receipt) => {
+        //console.log("receipt: ", receipt);
+        setLoading(false);
+      });
+    loadBlockchainData();
+  };
   useEffect(() => {
     //refresh the UI if the user changes the account in meta mask
     if (window.ethereum) {
@@ -151,7 +237,11 @@ const App = () => {
   return (
     <>
       <div>
-        <Header account={account} />
+        <Header
+          account={account}
+          balance={accountBalance}
+          isOwner={account === tokenOwner}
+        />
         <div className="container">
           <div className="d-flex flex-column bd-highlight mt-5">
             <div className="p-2 mt-20">
@@ -175,11 +265,20 @@ const App = () => {
                     <Route path="/addCourse" exact>
                       <AddCourse onCourseAdded={createCourse}></AddCourse>
                     </Route>
-                    <Route path="/" exact>
+                    {account === tokenOwner && (
+                      <Route path="/airdrop" exact>
+                        <AirDropCoins
+                          onOwnerAirDropClicked={onOwnerAirDropClickedHandler}
+                        ></AirDropCoins>
+                      </Route>
+                    )}
+                    <Route path="/">
                       <Home
                         isEnrolled={false}
                         availableCourses={courses}
                         onEnrollingCourse={enrollInCourse}
+                        airDropFlag={airDropFlag}
+                        onAirDropClicked={onAirDropClickedHandler}
                       />
                     </Route>
                   </Switch>
